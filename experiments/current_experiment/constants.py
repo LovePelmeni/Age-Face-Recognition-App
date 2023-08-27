@@ -1,0 +1,7 @@
+import torch.nn as nn
+
+BATCH_SIZE=128
+LOSS_FUNCTION=nn.CrossEntropyLoss
+
+IMAGE_HEIGHT=512
+IMAGE_WIDTH=512
