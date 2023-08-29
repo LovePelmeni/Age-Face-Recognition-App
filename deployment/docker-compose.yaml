@@ -1,0 +1,30 @@
+services:
+
+  nginx_server:
+    container_name: nginx-server
+    image: nginx:latest
+    volumes:
+      ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - application
+    networks: 
+      - project_network 
+  
+  application:
+    container_name: application-server
+    image: crazycoderrr/face_recog_project:latest
+    depends_on:
+      - database
+    networks:
+      - project_network
+  
+  database:
+    container_name: database-container
+    image: postgres:latest
+    networks:
+      - project_network
+
+networks:
+  project_network:
+    external: True
+    name: face_rec_network
