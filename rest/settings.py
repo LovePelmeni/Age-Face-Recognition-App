@@ -4,7 +4,7 @@ from fastapi.middleware import cors
 import os
 
 logger = logging.getLogger("startup_logger")
-file_handler = logging.FileHandler(filename='file_handler')
+file_handler = logging.FileHandler(filename='logs/file_handler.log')
 logger.addHandler(file_handler)
 
 DEBUG_MODE = os.environ.get("DEBUG_MODE", 1)
