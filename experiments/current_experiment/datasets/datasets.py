@@ -1,6 +1,5 @@
 from torch.utils import data 
-import torch
-
+from augmentation import augmentation
 class FaceRecognitionDataset(data.Dataset):
     """
     Implementation of the dataset used for 
@@ -14,4 +13,9 @@ class FaceRecognitionDataset(data.Dataset):
         return len(self.images)
 
     def __getitem__(self, idx):
-        pass
+        selected_data = self.images[idx]
+        selected_labels = self.labels[idx]
+        augmented_data = augmentation.apply_augmentations(
+            dataset=selected_data
+        )
+        return selected_labels, augmented_data
