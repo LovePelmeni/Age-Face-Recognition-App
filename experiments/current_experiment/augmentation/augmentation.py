@@ -1,5 +1,6 @@
-from torchvision import transforms 
+from torchvision import transforms
 from datasets import datasets
+from current_experiment import constants
 
 def apply_augmentations(dataset: datasets.FaceRecognitionDataset):
     """
@@ -8,10 +9,11 @@ def apply_augmentations(dataset: datasets.FaceRecognitionDataset):
     """
     transformations = transforms.Compose(
         [
-            transforms.Resize((256, 256)),
+            transforms.Resize((constants.INPUT_IMAGE_HEIGHT, constants.INPUT_IMAGE_WIDTH)),
             transforms.ColorJitter(brightness=0.5),
+            transforms.RandomHorizontalFlip(p=0.5),
             transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
-            transforms.ToTensor(),
+            transforms.ToPILImage()
         ]
     )
     trans_dataset = transformations(dataset)

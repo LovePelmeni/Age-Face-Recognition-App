@@ -1,17 +1,19 @@
-import torch 
+import torch
 from torch import nn
-import os 
-import logging 
+import os
+import logging
 
 logger = logging.getLogger(__name__)
 file_handler = logging.getLogger(__name__)
 logger.addHandler(file_handler)
+
 
 class FaceRecognitionNet(nn.Module):
     """
     Implementation of the Neural Network
     developed for Face Recognition
     """
+
     def __init__(self, num_classes: int):
 
         self.layer1 = nn.Sequential([
@@ -22,31 +24,35 @@ class FaceRecognitionNet(nn.Module):
         ])
 
         self.layer2 = nn.Sequential([
-            nn.Conv2d(in_channels=96, out_channels=256, kernel_size=5, stride=1, padding=2),
+            nn.Conv2d(in_channels=96, out_channels=256,
+                      kernel_size=5, stride=1, padding=2),
             nn.BatchForm2d(num_features=256),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=3, stride=2)
         ])
 
         self.layer3 = nn.Sequential([
-            nn.Conv2d(in_channels=256, out_channels=384, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=256, out_channels=384,
+                      kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=384),
             nn.ReLU(),
         ])
 
         self.layer4 = nn.Sequential([
-            nn.Conv2d(in_channels=384, out_channels=384, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=384, out_channels=384,
+                      kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=256),
             nn.ReLU()
         ])
-        
+
         self.layer5 = nn.Sequential([
-            nn.Conv2d(in_channels=384, out_channels=256, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=384, out_channels=256,
+                      kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=256),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=3, stride=2)
         ])
-        
+
         self.fc_layer = nn.Sequential([
             nn.Dropout(p=0.5),
             nn.Linear(in_features=9216, out_features=4096),
@@ -76,7 +82,7 @@ class FaceRecognitionNet(nn.Module):
         output = self.fc_layer1(output)
         output = self.fc_layer2(output)
         return output
-    
+
     @staticmethod
     def export(model, model_name: str, model_path: str):
         name = os.path.join(model_path, model_name + ".onnx")
