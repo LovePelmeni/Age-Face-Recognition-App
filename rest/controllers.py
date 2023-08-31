@@ -1,15 +1,24 @@
 from fastapi import UploadFile, File
-from experiments.current_experiment.datasets import datasets
 import logging
 from PIL import Image
-from experiments.current_experiment.models import models
 import fastapi.responses as resp
 import torch.onnx
+import torch
 
 Logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler(filename='logs/rest_controllers.log')
 
-model = torch.onnx.load("experiments/current_experiment/prod_models/neural_net.onnx")
+# Loading Neural Network..
+try:
+    model = torch.jit.load("experiments/current_experiment/prod_models/neural_net.onnx")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+    # entering evaluation mode for Neural Network
+    model.eval()
+
+except Exception as err:
+    Logger.critical(err)
+    raise SystemExit("Failed to load neural network, check 'rest_controllers' logs...")
 
 async def predict_person_category(self, person_photo: UploadFile = File(...)):
     try:

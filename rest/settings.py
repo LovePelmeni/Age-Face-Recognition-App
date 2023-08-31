@@ -4,6 +4,8 @@ from fastapi.middleware import cors
 import os
 from rest import controllers
 from monitoring import monitoring
+import torch.jit
+import torch
 
 logger = logging.getLogger("startup_logger")
 file_handler = logging.FileHandler(filename='logs/file_handler.log')
@@ -16,13 +18,13 @@ ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*")
 ALLOWED_HEADERS = os.environ.get("ALLOWED_HEADERS", "*")
 ALLOWED_METHODS = os.environ.get("ALLOWED_METHODS", "*")
 
-try:
-    # initializing web application
-    application = fastapi.FastAPI(
+# initializing web application
+application = fastapi.FastAPI(
         version=VERSION,
         debug=DEBUG_MODE
-    )
+)
 
+try:
     # adding api monitoring REST endpoints
     application.add_api_route(
         path='/api/monitoring/resources/',
