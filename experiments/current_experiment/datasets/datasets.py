@@ -1,16 +1,15 @@
 from torch.utils import data
 from augmentation import augmentation
-
-
+from PIL.Image import Image
+import typing
 class FaceRecognitionDataset(data.Dataset):
     """
     Implementation of the dataset used for 
     Face Recognition
     """
-
     def __init__(self, images, labels):
-        self.images = images
-        self.labels = labels
+        self.images: typing.List[Image] = images
+        self.labels: typing.List[int] = labels
 
     def __len__(self):
         return len(self.images)
