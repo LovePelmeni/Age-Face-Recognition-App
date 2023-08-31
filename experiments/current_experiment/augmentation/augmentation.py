@@ -1,8 +1,7 @@
+from experiments.current_experiment import constants
 from torchvision import transforms
-from datasets import datasets
-from current_experiment import constants
 
-def apply_augmentations(dataset: datasets.FaceRecognitionDataset):
+def apply_augmentations(dataset):
     """
     Function applies augmentations to a given dataset
     of images

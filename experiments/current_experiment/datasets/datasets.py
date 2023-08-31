@@ -1,7 +1,7 @@
-from torch.utils import data
-from augmentation import augmentation
 from PIL.Image import Image
+from experiments.current_experiment.augmentation import augmentation
 import typing
+from torch.utils import data
 class FaceRecognitionDataset(data.Dataset):
     """
     Implementation of the dataset used for 
