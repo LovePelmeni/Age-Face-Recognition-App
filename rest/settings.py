@@ -4,8 +4,6 @@ from fastapi.middleware import cors
 import os
 from rest import controllers
 from monitoring import monitoring
-import torch.jit
-import torch
 
 logger = logging.getLogger("startup_logger")
 file_handler = logging.FileHandler(filename='logs/file_handler.log')

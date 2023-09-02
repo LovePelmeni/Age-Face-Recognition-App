@@ -5,12 +5,13 @@ import logging
 from datasets import datasets
 from torch.utils.data import DataLoader
 import constants
-from torch import optim 
+from torch import optim
 from torch.nn import functional
 
 logger = logging.getLogger(__name__)
 file_handler = logging.getLogger(__name__)
 logger.addHandler(file_handler)
+
 
 class FaceRecognitionNet(nn.Module):
     """
@@ -18,17 +19,16 @@ class FaceRecognitionNet(nn.Module):
     developed for Face Recognition
     """
 
-    def __init__(self, num_classes: int, learning_rate: float=0.001):
-
+    def __init__(self, num_classes: int, learning_rate: float = 0.001):
 
         self.optimizer = optim.Adam(
-            params=self.parameters(), 
+            params=self.parameters(),
             lr=learning_rate,
             momentum=0.9,
         )
 
         self.loss_function = nn.CrossEntropyLoss()
-        
+
         self.layer1 = nn.Sequential([
             nn.Conv2d(in_channels=3, out_channels=96, stride=4, padding=0),
             nn.BatchNorm2d(num_features=96),
@@ -94,7 +94,7 @@ class FaceRecognitionNet(nn.Module):
 
         output = output.reshape(output.size(0), -1)
 
-        # Fully-Connected Layers application 
+        # Fully-Connected Layers application
         output = self.fc_layer(output)
         output = self.fc_layer1(output)
         output = self.fc_layer2(output)
@@ -110,12 +110,12 @@ class FaceRecognitionNet(nn.Module):
         Function trains Neural Network model using given image dataset
         """
         training_set = DataLoader(
-            dataset=image_dataset, 
+            dataset=image_dataset,
             batch_size=constants.BATCH_SIZE
         )
         for batch_images, batch_labels in training_set:
             self.optimizer.zero_grad()
-            
+
             predicted_classes = self.forward(batch_images)
             loss = self.loss_function(predicted_classes, batch_labels)
 

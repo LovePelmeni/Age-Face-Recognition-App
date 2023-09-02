@@ -7,6 +7,7 @@ import torch
 
 Logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler(filename='logs/rest_controllers.log')
+Logger.addHandler(file_handler)
 
 # Loading Neural Network..
 try:

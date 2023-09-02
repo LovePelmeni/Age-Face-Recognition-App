@@ -2,11 +2,14 @@ from PIL.Image import Image
 from experiments.current_experiment.augmentation import augmentation
 import typing
 from torch.utils import data
+
+
 class FaceRecognitionDataset(data.Dataset):
     """
     Implementation of the dataset used for 
     Face Recognition
     """
+
     def __init__(self, images, labels):
         self.images: typing.List[Image] = images
         self.labels: typing.List[int] = labels
