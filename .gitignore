@@ -2,3 +2,4 @@ __pytest_cache__
 *.log
 __pycache__
 fc_env
+.DS_Store
