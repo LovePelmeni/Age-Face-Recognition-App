@@ -6,7 +6,6 @@ from datasets import datasets
 from torch.utils.data import DataLoader
 import constants
 from torch import optim
-from torch.nn import functional
 from ultralytics import YOLO
 from PIL import Image
 from torchvision.ops.boxes import nms
@@ -129,7 +128,6 @@ class FaceRecognitionNet(nn.Module):
         name = os.path.join(model_path, model_name + ".onnx")
         torch.onnx.export(model=self, f=name)
 
-
 class HumanFaceDetector(nn.Module):
     """
     Detector of Human Face
@@ -145,68 +143,23 @@ class HumanFaceDetector(nn.Module):
         self.available_device = torch.device(device='cuda' if torch.cuda.is_available() else 'cpu')
         self.detector.to(self.available_device)
 
-    def fit(self, images, image_size):
+    def fit(self, images, image_size: tuple):
+
+        if not image_size or not isinstance(image_size, tuple):
+            raise ValueError("Invalid image size")
+        
+        if len(image_size) != 2 or image_size[0] == 0 or image_size[1] == 0:
+            raise ValueError("Invalid image size format")
+
+        if not len(images):
+            return 
+
         self.detector.train(
             data=images,
             epochs=len(images) ** 0.5,
             imgsz=image_size
         )
 
-    @staticmethod
-    def _perform_nms(
-        boxes: torch.Tensor, 
-        conf_scores: torch.Tensor, 
-        iou_threshold: torch.float) -> torch.Tensor:
-        """
-        Applies Non-Maximum Suppression (NMS) technique 
-        for given bounding boxes on the same image
-
-        Args:
-            boxes - (x, y, w, z) coordinates of bounding boxes on image 
-            conf_scores - (float) confidence scores
-            iou_threshold - threshold for distinguishing 
-            between overlapped and non-overlapped boxes
-
-        Returns:
-            - selected indices after applying NMS
-        """
-        selected_indices = nms(
-            boxes=boxes, 
-            scores=conf_scores, 
-            iou_threshold=iou_threshold
-        )
-        return selected_indices
-
-    @staticmethod
-    def _perform_confidence_thresholding(
-        conf_scores: torch.Tensor, 
-        threshold: torch.float) -> torch.Tensor:
-        """
-        Filters out images with confidence scores less, 
-        than a given threshold
-
-        Args:
-            conf_scores - torch.Tensor (confidence scores of bounding boxes on a single image)
-            threshold - torch.float8 - (baseline level of confidence score)
-        
-        Returns:
-            selected indices after applying confidence thresholding
-        """
-        indices = torch.where(conf_scores >= threshold)[0]
-        return indices
-
-    def _perform_post_processing(self, 
-        boxes, 
-        scores, 
-        classes, 
-        names):
-        """
-        Applies post processing techniques 
-        for given set of predicted boxes for each individual image
-        """
-        indices = self._perform_nms(boxes, conf_scores=scores, iou_threshold=0.5)
-        indices = self._perform_confidence_thresholding(conf_scores=scores[indices], threshold=0.6)
-        
     def predict(self, image: Image):
         """
         Function detects human face on a given image
