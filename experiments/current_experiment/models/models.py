@@ -154,6 +154,7 @@ class HumanFaceDetector(nn.Module):
         if not len(images):
             return 
 
+        # training yolo object detector
         self.detector.train(
             data=images,
             epochs=len(images) ** 0.5,
@@ -165,15 +166,7 @@ class HumanFaceDetector(nn.Module):
         Function detects human face on a given image
         """
         predictions = self.detector(image)
-
-        # performing post-proces ssing techniques
-        filtered_predictions = self._perform_post_processing(
-            boxes=predictions['bbox'],
-            scores=predictions['confidence_scores'],
-            classes=predictions['classes'],
-            names=predictions['names']
-        )
-        return filtered_predictions
+        return predictions
 
     def export(self):
         """
