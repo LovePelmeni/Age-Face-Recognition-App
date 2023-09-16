@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 file_handler = logging.getLogger(__name__)
 logger.addHandler(file_handler)
 
-class FaceRecognitionNet(models.ResNet):
+class FaceRecognitionNet(object):
     """
     Implementation of the Neural Network
     developed for Face Recognition, based on ResNet50 Architecture
@@ -22,16 +22,15 @@ class FaceRecognitionNet(models.ResNet):
     def __init__(self, 
         loss_function, 
         num_classes: int, 
+        weights,
         weight_decay: float = 0.01,
         learning_rate: float = 0.001,
         momentum: float = 0.9,
         optimizer: optim.Optimizer = optim.Adam,
-        *args,
-        **kwargs
     ):
-        super(self, models.ResNet).__init__(*args, **kwargs)
+        self.model = models.resnet50(weights=weights)
 
-        self.fc = nn.Linear(
+        self.model.fc = nn.Linear(
             in_features=self.fc.in_features, 
             out_features=num_classes
         )
@@ -80,8 +79,7 @@ class FaceRecognitionNet(models.ResNet):
 
         X_data (list of PIL Image objects) - training dataset
         """
-        
-        prediction_probs = super().forward(x=X_data)
+        prediction_probs = self.model.forward(x=X_data)
         return prediction_probs
 
     def train(self, image_dataset: datasets.FaceRecognitionDataset):
@@ -102,10 +100,11 @@ class FaceRecognitionNet(models.ResNet):
         # paralelling Neural Network training
 
         paral_model = nn.DataParallel(
-            module=self, 
+            module=self.model, 
             device_ids=torch.tensor([torch.device('mps'), torch.device('cuda')]),
             output_device=torch.device('cpu')
         )
+
         total_loss = []
 
         for epoch in range(self.max_epochs):
