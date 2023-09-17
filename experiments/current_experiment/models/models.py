@@ -3,11 +3,11 @@ from torch import nn
 import os
 import logging
 from datasets import datasets
-from torch.utils.data.distributed import DistributedSampler
 import constants
 from torch import optim
 from datetime import datetime
 from torchvision import models
+from torch.utils import data
 
 logger = logging.getLogger(__name__)
 file_handler = logging.getLogger(__name__)
@@ -23,27 +23,28 @@ class FaceRecognitionNet(object):
         loss_function, 
         num_classes: int, 
         weights,
+        main_device,
         weight_decay: float = 0.01,
         learning_rate: float = 0.001,
         momentum: float = 0.9,
-        optimizer: optim.Optimizer = optim.Adam,
     ):
         self.model = models.resnet50(weights=weights)
+        self.main_device = main_device
+        self.loss_function = loss_function
 
         self.model.fc = nn.Linear(
             in_features=self.fc.in_features, 
             out_features=num_classes
         )
 
-        self.optimizer = optimizer(
+        self.optimizer = optim.Adam(
             params=self.parameters(),
             lr=learning_rate,
             momentum=momentum,
             weight_decay=weight_decay,
         )
-        self.loss_function = loss_function
 
-    def save_checkpoint(self, epoch: int, loss: float):
+    def save_checkpoint(self, epoch: int, loss: float, file_path: str):
         """
         Function saves model intermediate training checkpoints 
         """
@@ -54,9 +55,7 @@ class FaceRecognitionNet(object):
                 "loss": loss,
                 "epoch": epoch
             }, 
-            f='experiments/current_experiment/train_checkpoints/checkpoint_%s_%s.pt' % (
-                epoch, datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
-            )
+            f=file_path
         )
     def load_state(self, file_path: str):
         try:
@@ -72,7 +71,7 @@ class FaceRecognitionNet(object):
             logger.debug(err)
             raise RuntimeError('certain required parameters was not presented in the state file')
 
-    def forward(self, X_data):
+    def predict(self, X_data):
         """
         Function returns softmax probabilities 
         of the output for each given class
@@ -92,7 +91,7 @@ class FaceRecognitionNet(object):
         # turning model into training process
         super().train(mode=True)
 
-        training_set = DistributedSampler(
+        training_set = data.DataLoader(
             dataset=image_dataset,
             batch_size=constants.BATCH_SIZE,
             shuffle=True
@@ -100,8 +99,7 @@ class FaceRecognitionNet(object):
         # paralelling Neural Network training
 
         paral_model = nn.DataParallel(
-            module=self.model, 
-            device_ids=torch.tensor([torch.device('mps'), torch.device('cuda')]),
+            module=self.model,
             output_device=torch.device('cpu')
         )
 
@@ -110,10 +108,12 @@ class FaceRecognitionNet(object):
         for epoch in range(self.max_epochs):
             epoch_loss = []
 
-            for batch_images, batch_labels in training_set:
+            for batch_labels, batch_images in training_set:
                 
                 self.optimizer.zero_grad()
-                predicted_classes = paral_model.forward(batch_images)
+
+                predicted_classes = paral_model.forward(
+                batch_images.to(self.main_device)).detach()
 
                 loss = self.loss_function(predicted_classes, batch_labels)
                 epoch_loss.append(loss.item())
