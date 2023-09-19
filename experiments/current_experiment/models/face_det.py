@@ -38,7 +38,7 @@ class HumanFaceDetector(object):
         self.optimizer = optim.Adam(
             params=self.model.parameters(),
             weight_decay=weight_decay,
-            lr=learning_rate
+            lr=learning_rate,
         )
 
     def _select_valid_boxes(self, boxes, scores):
@@ -66,9 +66,15 @@ class HumanFaceDetector(object):
 
             losses.append(sum(epoch_losses) / len(epoch_losses))
         return sum(losses) / len(losses)
+
     
     def predict_bbx(self, images: typing.List[Image.Image]):
+        """
+        Function predicts coordinates of the bounding boxes 
+        for each given image
 
+        images: typing.List[Image.Image] - array of images
+        """ 
         self.model.eval()
         images_info = {} 
 
@@ -81,14 +87,17 @@ class HumanFaceDetector(object):
         return images_info
     
     def checkpoint(self, epoch, loss, file_path):
-        torch.save(
-            {
-                'model_state': self.model.state_dict(),
-                'optimizer_state': self.optimizer.state_dict(),
-                'epoch': epoch,
-                'loss': loss
-            }, f=file_path
-        )
+        try:
+            torch.save(
+                {
+                    'model_state': self.model.state_dict(),
+                    'optimizer_state': self.optimizer.state_dict(),
+                    'epoch': epoch,
+                    'loss': loss
+                }, f=file_path
+            )
+        except(FileNotFoundError, FileExistsError) as file_err:
+            logger.debug("failed to save checkpoint, file problem: %s" % file_err)
 
     def export(self, path: str):
         self.model.export(f=path)

@@ -1,0 +1,8 @@
+__pytest_cache__
+*.log
+__pycache__
+fc_env
+.DS_Store
+*.swp
+.pytest_cache
+fr_env

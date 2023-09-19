@@ -16,6 +16,11 @@ COPY pyproject.toml ./
 COPY ./flake8.ini ./
 COPY ./proj_requirements ./proj_requirements
 COPY ./rest ./rest
+COPY ./experiments ./experiments
+COPY ./monitoring ./monitoring
+
+# Creating directory for storing log files 
+RUN mkdir logs
 
 # Installing libraries 
 RUN apt-get install gcc
@@ -25,6 +30,10 @@ RUN pip install --upgrade pip
 RUN poetry export --format=requirements.txt \
 --output=proj_requirements/prod_requirements.txt --without-hashes
 
+# installing project requirements
+RUN pip install -r proj_requirements/prod_requirements.txt --no-cache
+
+# installing additional modules for fastapi 
 RUN pip install 'fastapi[all]' --upgrade
 RUN chmod +x ./entrypoint.sh
 
