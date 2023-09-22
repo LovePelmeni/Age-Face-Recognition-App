@@ -3,11 +3,10 @@ from torch import nn
 import os
 import logging
 from datasets import datasets
-import constants
 from torch import optim
-from datetime import datetime
 from torchvision import models
 from torch.utils import data
+import typing
 
 logger = logging.getLogger(__name__)
 file_handler = logging.getLogger(__name__)
@@ -22,6 +21,7 @@ class FaceRecognitionNet(object):
     def __init__(self, 
         loss_function, 
         num_classes: int, 
+        batch_size: int,
         weights,
         main_device,
         weight_decay: float = 0.01,
@@ -31,6 +31,7 @@ class FaceRecognitionNet(object):
         self.model = models.resnet50(weights=weights)
         self.main_device = main_device
         self.loss_function = loss_function
+        self.batch_size = batch_size
 
         self.model.fc = nn.Linear(
             in_features=self.fc.in_features, 
@@ -44,7 +45,7 @@ class FaceRecognitionNet(object):
             weight_decay=weight_decay,
         )
 
-    def save_checkpoint(self, epoch: int, loss: float, file_path: str):
+    def _save_checkpoint(self, epoch: int, loss: float, file_path: str):
         """
         Function saves model intermediate training checkpoints 
         """
@@ -57,7 +58,29 @@ class FaceRecognitionNet(object):
             }, 
             f=file_path
         )
-    def load_state(self, file_path: str):
+
+    def freeze_layers(self, layer_params: typing.List):
+        """
+        Function freezes given parameters to prevent them 
+        from being updated during transfer learning tasks 
+
+        Args:
+            - layer_params (typing.List) - array of parameter strings
+        """
+        for param in self.model.parameters():
+            if param in layer_params:
+                param.requires_grad_(mode=False)
+
+    def unfreeze_layers(self):
+        """
+        Function unfreezes all layer parameters
+        that has been ever freezed
+        """
+        for param in self.model.parameters():
+            if param.requires_grad == False:
+                param.requires_grad_(mode=True)
+
+    def _load_state(self, file_path: str):
         try:
             state = torch.load(f=file_path)
             self.optimizer.load_state_dict(state['optimizer_state_dict'])
@@ -81,6 +104,30 @@ class FaceRecognitionNet(object):
         prediction_probs = self.model.forward(x=X_data)
         return prediction_probs
 
+    def evaluate(self, image_dataset: datasets.FaceRecognitionDataset):
+        """
+        Function evaluates model using given image dataset
+        """
+        if not len(image_dataset):
+            return 0.0
+        try:
+            losses = []
+            loader = data.DataLoader(
+                dataset=image_dataset,
+                shuffle=True,
+                batch_size=self.batch_size
+            )
+            for labels, images in loader:
+                predictions = self.model.forward(images)
+                loss = self.loss_function(labels, predictions)
+                losses.append(loss.item())
+            return sum(losses) / len(losses)
+
+        except(Exception) as err:
+            logger.error(err)
+            raise RuntimeError(
+            "Failed to evaluate model, internal error")
+
     def train(self, image_dataset: datasets.FaceRecognitionDataset):
         """
         Function trains Neural Network model using given image dataset
@@ -93,7 +140,7 @@ class FaceRecognitionNet(object):
 
         training_set = data.DataLoader(
             dataset=image_dataset,
-            batch_size=constants.BATCH_SIZE,
+            batch_size=self.batch_size,
             shuffle=True
         )
         # paralelling Neural Network training
@@ -113,7 +160,7 @@ class FaceRecognitionNet(object):
                 self.optimizer.zero_grad()
 
                 predicted_classes = paral_model.forward(
-                batch_images.to(self.main_device)).detach()
+                batch_images.to(self.main_device)).cpu()
 
                 loss = self.loss_function(predicted_classes, batch_labels)
                 epoch_loss.append(loss.item())
@@ -123,10 +170,11 @@ class FaceRecognitionNet(object):
                 self.optimizer.step()
 
             # saving checkpoints of the training process
-            self.save_checkpoint(
+            self._save_checkpoint(
                 loss=torch.mean(epoch_loss),
                 epoch=epoch
             )
+
             total_loss.append(torch.mean(epoch_loss))
         mean_loss = torch.mean(total_loss)
         return mean_loss
@@ -134,3 +182,5 @@ class FaceRecognitionNet(object):
     def export(self, model_name: str, model_path: str):
         name = os.path.join(model_path, model_name + ".onnx")
         torch.onnx.export(model=self, f=name)
+
+
