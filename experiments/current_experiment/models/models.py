@@ -7,6 +7,7 @@ from torch import optim
 from torchvision import models
 from torch.utils import data
 import typing
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 file_handler = logging.getLogger(__name__)
@@ -26,10 +27,9 @@ class FaceRecognitionNet(object):
         main_device,
         weight_decay: float = 0.01,
         learning_rate: float = 0.001,
-        momentum: float = 0.9,
     ):
-        self.model = models.resnet50(weights=weights)
         self.main_device = main_device
+        self.model = models.resnet50(weights=weights).to(device=self.main_device)
         self.loss_function = loss_function
         self.batch_size = batch_size
 
@@ -41,7 +41,6 @@ class FaceRecognitionNet(object):
         self.optimizer = optim.Adam(
             params=self.parameters(),
             lr=learning_rate,
-            momentum=momentum,
             weight_decay=weight_decay,
         )
 
@@ -94,14 +93,14 @@ class FaceRecognitionNet(object):
             logger.debug(err)
             raise RuntimeError('certain required parameters was not presented in the state file')
 
-    def predict(self, X_data):
+    def predict(self, images):
         """
         Function returns softmax probabilities 
         of the output for each given class
 
         X_data (list of PIL Image objects) - training dataset
         """
-        prediction_probs = self.model.forward(x=X_data)
+        prediction_probs = self.model.forward(x=images)
         return prediction_probs
 
     def evaluate(self, image_dataset: datasets.FaceRecognitionDataset):
@@ -145,27 +144,19 @@ class FaceRecognitionNet(object):
         )
         # paralelling Neural Network training
 
-        paral_model = nn.DataParallel(
-            module=self.model,
-            output_device=torch.device('cpu')
-        )
-
         total_loss = []
 
         for epoch in range(self.max_epochs):
             epoch_loss = []
 
-            for batch_labels, batch_images in training_set:
-                
-                self.optimizer.zero_grad()
+            for batch_labels, batch_images in tqdm(training_set):
 
-                predicted_classes = paral_model.forward(
+                predicted_classes = self.model.forward(
                 batch_images.to(self.main_device)).cpu()
 
                 loss = self.loss_function(predicted_classes, batch_labels)
                 epoch_loss.append(loss.item())
 
-                # backpropagation
                 loss.backward()
                 self.optimizer.step()
 
@@ -182,5 +173,3 @@ class FaceRecognitionNet(object):
     def export(self, model_name: str, model_path: str):
         name = os.path.join(model_path, model_name + ".onnx")
         torch.onnx.export(model=self, f=name)
-
-
