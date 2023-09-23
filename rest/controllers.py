@@ -13,19 +13,6 @@ Logger.addHandler(file_handler)
 # Loading Neural Network..
 try:
     model = torch.jit.load("experiments/current_experiment/prod_models/neural_net.onnx")
-
-    if torch.cuda.is_available():
-        device = torch.device('cuda')
-        Logger.debug("Model has been attached to available GPU, which supports CUDA")
-
-    elif backends.mps.is_available():
-        device = torch.device("mps")
-        Logger.debug("Model has been attached to available MPS backend.")
-    else:
-        device = torch.device("cpu")
-        Logger.debug("cuda and mps are not available, attach model to CPU")
-
-    model.to(device)
     # entering evaluation mode for Neural Network
     model.eval()
     
