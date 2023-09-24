@@ -13,28 +13,28 @@ logger = logging.getLogger(__name__)
 file_handler = logging.getLogger(__name__)
 logger.addHandler(file_handler)
 
+
 class FaceRecognitionNet(object):
     """
     Implementation of the Neural Network
     developed for Face Recognition, based on ResNet50 Architecture
-    """ 
+    """
 
-    def __init__(self, 
-        loss_function, 
-        num_classes: int, 
-        batch_size: int,
-        weights,
-        main_device,
-        weight_decay: float = 0.01,
-        learning_rate: float = 0.001,
-    ):
-        self.main_device = main_device
-        self.model = models.resnet50(weights=weights).to(device=self.main_device)
-        self.loss_function = loss_function
-        self.batch_size = batch_size
+    def __init__(self,
+                 loss_function,
+                 num_classes: int,
+                 weights,
+                 weight_decay: float = 0.01,
+                 learning_rate: float = 0.001,
+                 momentum: float = 0.9,
+                 optimizer: optim.Optimizer = optim.Adam,
+                 trained_model=None
+                 ):
+        self.model = trained_model if trained_model else models.resnet50(
+            weights=weights)
 
         self.model.fc = nn.Linear(
-            in_features=self.fc.in_features, 
+            in_features=self.fc.in_features,
             out_features=num_classes
         )
 
@@ -54,32 +54,13 @@ class FaceRecognitionNet(object):
                 "model_state_dict": self.module.state_dict(),
                 "loss": loss,
                 "epoch": epoch
-            }, 
-            f=file_path
+            },
+            f='experiments/current_experiment/train_checkpoints/checkpoint_%s_%s.pt' % (
+                epoch, datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
+            )
         )
 
-    def freeze_layers(self, layer_params: typing.List):
-        """
-        Function freezes given parameters to prevent them 
-        from being updated during transfer learning tasks 
-
-        Args:
-            - layer_params (typing.List) - array of parameter strings
-        """
-        for param in self.model.parameters():
-            if param in layer_params:
-                param.requires_grad_(mode=False)
-
-    def unfreeze_layers(self):
-        """
-        Function unfreezes all layer parameters
-        that has been ever freezed
-        """
-        for param in self.model.parameters():
-            if param.requires_grad == False:
-                param.requires_grad_(mode=True)
-
-    def _load_state(self, file_path: str):
+    def load_state(self, file_path: str):
         try:
             state = torch.load(f=file_path)
             self.optimizer.load_state_dict(state['optimizer_state_dict'])
@@ -88,10 +69,11 @@ class FaceRecognitionNet(object):
         except FileNotFoundError as err:
             logger.debug(err)
             raise RuntimeError("Failed to load state, file does not exist")
-            
+
         except KeyError as err:
             logger.debug(err)
-            raise RuntimeError('certain required parameters was not presented in the state file')
+            raise RuntimeError(
+                'certain required parameters was not presented in the state file')
 
     def predict(self, images):
         """
@@ -144,15 +126,22 @@ class FaceRecognitionNet(object):
         )
         # paralelling Neural Network training
 
+        paral_model = nn.DataParallel(
+            module=self.model,
+            device_ids=torch.tensor(
+                [torch.device('mps'), torch.device('cuda')]),
+            output_device=torch.device('cpu')
+        )
+
         total_loss = []
 
         for epoch in range(self.max_epochs):
             epoch_loss = []
 
-            for batch_labels, batch_images in tqdm(training_set):
+            for batch_images, batch_labels in training_set:
 
-                predicted_classes = self.model.forward(
-                batch_images.to(self.main_device)).cpu()
+                self.optimizer.zero_grad()
+                predicted_classes = paral_model.forward(batch_images)
 
                 loss = self.loss_function(predicted_classes, batch_labels)
                 epoch_loss.append(loss.item())

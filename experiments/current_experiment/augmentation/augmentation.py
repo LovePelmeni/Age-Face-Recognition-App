@@ -2,6 +2,7 @@ from experiments.current_experiment import constants
 from torchvision import transforms
 from torchvision.transforms import v2
 
+
 def apply_augmentations(dataset):
     """
     Function applies augmentations to a given dataset
@@ -19,4 +20,3 @@ def apply_augmentations(dataset):
     )
     trans_dataset = transformations(dataset)
     return trans_dataset
-

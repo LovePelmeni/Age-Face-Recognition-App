@@ -1,4 +1,4 @@
-__pytest_cache__
+.pytest_cache
 *.log
 __pycache__
 fc_env

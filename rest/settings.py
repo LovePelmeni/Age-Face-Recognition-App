@@ -18,8 +18,8 @@ ALLOWED_METHODS = os.environ.get("ALLOWED_METHODS", "*")
 
 # initializing web application
 application = fastapi.FastAPI(
-        version=VERSION,
-        debug=DEBUG_MODE
+    version=VERSION,
+    debug=DEBUG_MODE
 )
 
 try:
