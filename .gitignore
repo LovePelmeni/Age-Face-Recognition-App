@@ -6,3 +6,4 @@ fc_env
 *.swp
 .pytest_cache
 fr_env
+.ipynb_checkpoints

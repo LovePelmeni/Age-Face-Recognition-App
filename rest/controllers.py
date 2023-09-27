@@ -45,7 +45,7 @@ async def predict_person_category(self, person_photo: UploadFile = File(...)):
     try:
         file_content = await person_photo.file.read()
         image_file = Image.open(file_content)
-        predicted_class_number = model.forward(image_file)
+        predicted_class_number = model.predict(image_file)
         return resp.Response(
             status_code=200,
             content={'person_class': predicted_class_number}

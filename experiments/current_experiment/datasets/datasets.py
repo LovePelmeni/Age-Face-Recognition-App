@@ -9,11 +9,12 @@ class FaceRecognitionDataset(data.Dataset):
     Face Recognition
     """
 
-    def __init__(self, images, labels, transformations=None):
+    def __init__(self, images, labels, transformations=None, weights=None):
         self.images: typing.List[Image] = images
         self.labels: typing.List[int] = labels
         self.transformations = transforms.Compose(transformations) if transformations else None
-
+        self.weights = weights
+        
     def __len__(self):
         return len(self.images)
 
