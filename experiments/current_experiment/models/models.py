@@ -1,4 +1,3 @@
-from re import I
 import torch
 from torch import nn
 import os
@@ -13,6 +12,11 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 file_handler = logging.getLogger(__name__)
 logger.addHandler(file_handler)
+
+def trace_gradient(module, input_grad, output_grad):
+    print("module: %s", module)
+    print("incoming gradient: %s", input_grad)
+    print("output gradient: %s", output_grad)
 
 class FaceRecognitionNet(object):
     """
@@ -53,6 +57,7 @@ class FaceRecognitionNet(object):
         self.loss_function = loss_function
         self.batch_size = batch_size
         self.freezed_params = set()
+        self.hooks = []
 
     def freeze_layers(self, parameters_names: list):
         """
@@ -81,6 +86,29 @@ class FaceRecognitionNet(object):
             for param in self.freezed_params:
                 param.required_grad = True
             self.freezed_params.clear()
+
+
+    def enable_gradient_trace(self):
+        """
+        Function traces gradient
+        through all given layer of the network
+        """
+        for layer in [
+            self.model.layer1, 
+            self.model.layer2, 
+            self.model.layer3, 
+            self.model.layer4
+        ]:
+            hook = layer.register_backward_hook(hook=trace_gradient)
+            self.hooks.append(hook)
+
+    def disable_gradient_trace(self):
+        """
+        Function disables gradient trace 
+        for NN model
+        """
+        while self.hooks:
+            self.hooks.pop().remove()
     
     def _save_checkpoint(self, epoch: int, loss: float, file_path: str):
         """
@@ -194,5 +222,6 @@ class FaceRecognitionNet(object):
 
     def export(self, model_name: str, model_path: str):
         name = os.path.join(model_path, model_name + ".onnx")
-        torch.onnx.export(model=self, f=name)
+        input_data = torch.tensor([512, 512, 3])
+        torch.onnx.export(model=self, f=name, args=input_data)
 

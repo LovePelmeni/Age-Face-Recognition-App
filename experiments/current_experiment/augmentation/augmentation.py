@@ -1,6 +1,7 @@
 from experiments.current_experiment import constants
 from torchvision import transforms
 from torchvision.transforms import v2
+from PIL import Image
 
 
 def apply_augmentations(dataset):
@@ -11,7 +12,10 @@ def apply_augmentations(dataset):
     transformations = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Resize((constants.INPUT_IMAGE_HEIGHT, constants.INPUT_IMAGE_WIDTH)),
+            transforms.Resize(
+                (constants.INPUT_IMAGE_HEIGHT, constants.INPUT_IMAGE_WIDTH), 
+                interpolation=Image.NEAREST
+            ),
             transforms.RandomHorizontalFlip(p=0.5),
             v2.RandomAdjustSharpness(sharpness_factor=constants.SHARPNESS_FACTOR, p=0.5),
             transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
