@@ -3,7 +3,6 @@ from torchvision import transforms
 from torchvision.transforms import v2
 from PIL import Image
 
-
 def apply_augmentations(dataset):
     """
     Function applies augmentations to a given dataset
