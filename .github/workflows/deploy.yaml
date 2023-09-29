@@ -1,0 +1,45 @@
+name: "Deployment Docker Project Pipeline"
+
+
+# Specifying availability 
+
+on:
+  push:
+    branches: ['main']
+
+# setting up permissions
+
+permissions:
+  contents: 'read'
+
+jobs:
+  docker_deployment:
+    env:
+      NEWS_DOCKER_IMAGE_TAG: crazycoderrr/face_recognition_project:latest
+    
+    runs_on: ubuntu:latest
+    timeout-minutes: 5
+
+  steps:
+    - name: Logging into dockerhub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+    - name: docker deployment
+      run: |
+        cd deployment 
+        docker-compose up -d && docker tag 
+
+    - name: tagging docker image
+      run: |
+        docker tag ${{ env.DOCKER_COMPOSE_APP_NAME }} ${{ env.DOCKER_COMPOSE_TAG }}:latest
+      
+    - name: pushing to dockerhub
+      run: |
+        docker push ${{ env.DOCKER_COMPOSE_TAG }}:latest
+    
+    - name: logging out of dockerhub 
+      run: |
+        docker logout
