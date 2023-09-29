@@ -8,15 +8,32 @@ from torchvision import models
 from torch.utils import data
 from datetime import datetime
 from tqdm import tqdm 
+from torch.quantization import quantize_dynamic
+import numpy
 
 logger = logging.getLogger(__name__)
 file_handler = logging.getLogger(__name__)
 logger.addHandler(file_handler)
 
-def trace_gradient(module, input_grad, output_grad):
-    print("module: %s", module)
-    print("incoming gradient: %s", input_grad)
-    print("output gradient: %s", output_grad)
+def add_gradient_trace_hook(layer_name: str):
+    """
+    Function used for gradient tracing
+    in Neural Networks
+    """
+    def trace_gradient(_, input_grad, output_grad):
+        print("module: %s", layer_name)
+        print("incoming gradient: %s", numpy.mean(input_grad))
+        print("output gradient: %s", numpy.mean(output_grad))
+    return trace_gradient
+
+
+def quantize_model(self, model, layers: dict, desired_weight_type):
+    quantized_model = quantize_dynamic(
+        model,
+        layers,
+        desired_weight_type
+    )
+    return quantized_model
 
 class FaceRecognitionNet(object):
     """
@@ -48,8 +65,8 @@ class FaceRecognitionNet(object):
             out_features=num_classes
         )
 
-        self.optimizer = optimizer if optimizer else optim.Adam(
-            params=self.parameters(),
+        self.optimizer = optim.Adam(
+            params=self.model.parameters(),
             lr=learning_rate,
             weight_decay=weight_decay,
         )
@@ -87,19 +104,22 @@ class FaceRecognitionNet(object):
                 param.required_grad = True
             self.freezed_params.clear()
 
-
     def enable_gradient_trace(self):
         """
         Function traces gradient
         through all given layer of the network
         """
-        for layer in [
+        self.hooks.clear()
+
+        for idx, layer in enumerate(
+            [
             self.model.layer1, 
             self.model.layer2, 
             self.model.layer3, 
-            self.model.layer4
-        ]:
-            hook = layer.register_backward_hook(hook=trace_gradient)
+            self.model.layer4]
+        ):
+            hook = layer.register_full_backward_hook(
+            add_gradient_trace_hook(layer_name='layer-%s' % str(idx)))
             self.hooks.append(hook)
 
     def disable_gradient_trace(self):
@@ -168,7 +188,7 @@ class FaceRecognitionNet(object):
             )
             for labels, images in loader:
                 predictions = self.model.forward(images).cpu()
-                loss = loss_function(torch.tensor(labels), predictions)
+                loss = loss_function(labels, predictions)
                 losses.append(loss.item())
             return sum(losses) / len(losses)
 

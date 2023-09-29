@@ -19,7 +19,7 @@ def apply_augmentations(dataset):
             transforms.RandomHorizontalFlip(p=0.5),
             v2.RandomAdjustSharpness(sharpness_factor=constants.SHARPNESS_FACTOR, p=0.5),
             transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
-            transforms.ToPILImage()
+            transforms.ToPILImage(),
         ]
     )
     trans_dataset = transformations(dataset)
