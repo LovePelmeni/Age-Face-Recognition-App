@@ -9,21 +9,25 @@ from torch.utils import data
 from datetime import datetime
 from tqdm import tqdm 
 from torch.quantization import quantize_dynamic
-import numpy
 
 logger = logging.getLogger(__name__)
 file_handler = logging.getLogger(__name__)
 logger.addHandler(file_handler)
 
-def add_gradient_trace_hook(layer_name: str):
+
+def add_parameter_gradient_trace_hook(param):
+    print(param)
+    print('Parameter: "%s", gradient_value' % (param))
+
+def add_layer_gradient_trace_hook(layer_name: str):
     """
     Function used for gradient tracing
     in Neural Networks
     """
     def trace_gradient(_, input_grad, output_grad):
         print("module: %s", layer_name)
-        print("incoming gradient: %s", numpy.mean(input_grad))
-        print("output gradient: %s", numpy.mean(output_grad))
+        print("incoming gradient: %s", input_grad)
+        print("output gradient: %s", output_grad)
     return trace_gradient
 
 
@@ -80,9 +84,10 @@ class FaceRecognitionNet(object):
         self.loss_function = loss_function
         self.batch_size = batch_size
         self.freezed_params = set()
-        self.hooks = []
+        self.layer_hooks = []
+        self.parameter_hooks = []
 
-    def freeze_layers(self, num_of_layers: int, *parameters_names):
+    def freeze_layers(self, num_of_layers: int):
         """
         Function freezes layers parameters 
         to perform transfer learning task 
@@ -90,9 +95,7 @@ class FaceRecognitionNet(object):
         Args:
             - parameters_names - list of parameter names
         """
-        if len(parameters_names) == 0: return 
         for layer_idx, layer in enumerate(self.model.parameters()):
-            
             if layer_idx <= num_of_layers:
                 layer.requires_grad = False 
         
@@ -103,25 +106,39 @@ class FaceRecognitionNet(object):
         for param in self.model.parameters():
             param.requires_grad = True
 
-    def enable_gradient_trace(self):
+    def enable_layer_gradient_trace(self):
         """
         Function traces gradient
         through all given layer of the network
         """
-        self.hooks.clear()
+        for idx, layer in enumerate([
+                self.model.layer1, 
+                self.model.layer2, 
+                self.model.layer3
+        ]):
+            hook = layer.register_full_backward_hook(
+                hook=add_layer_gradient_trace_hook(
+                    layer_name='layer-%s' % (str(idx))
+                )
+            )
+            self.layer_hooks.append(hook)
 
-        for idx, layer in enumerate(self.model.parameters()):
-            hook = layer.register_hook(
-            add_gradient_trace_hook(layer_name='layer-%s' % str(idx)))
-            self.hooks.append(hook)
+    def enable_parameter_gradient_trace(self):
+        for layer in self.model.parameters():
+            if layer.requires_grad:
+                hook = layer.register_hook(hook=add_parameter_gradient_trace_hook)
+                self.parameter_hooks.append(hook)
 
-    def disable_gradient_trace(self):
+    def disable_traces(self):
         """
         Function disables gradient trace 
         for NN model
         """
-        while self.hooks:
-            self.hooks.pop().remove()
+        while self.layer_hooks:
+            self.layer_hooks.pop().remove()
+
+        while self.parameter_hooks:
+            self.parameter_hooks.pop().remove()
     
     def _save_checkpoint(self, epoch: int, loss: float, file_path: str):
         """
