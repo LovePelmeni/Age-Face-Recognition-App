@@ -50,15 +50,14 @@ class FaceRecognitionNet(object):
                  weights,
                  weight_decay: float = 0.01,
                  learning_rate: float = 0.001,
-                 optimizer: optim.Optimizer = optim.Adam,
+                 lr_gamma: float = 0.01,
                  trained_model=None,
-                 ):
+    ):
 
         self.main_device = main_device if main_device else torch.device('cpu')
+
         self.model = trained_model if trained_model else models.resnet50(
             weights=weights).to(self.main_device)
-
-        self.model.layer3.parameters()
 
         self.model.fc = nn.Linear(
             in_features=self.model.fc.in_features,
@@ -70,13 +69,20 @@ class FaceRecognitionNet(object):
             lr=learning_rate,
             weight_decay=weight_decay,
         )
+
+        self.lr_scheduler = optim.lr_scheduler.StepLR(
+            optimizer=self.optimizer, 
+            step_size=1, 
+            gamma=lr_gamma
+        )
+
         self.max_epochs = max_epochs
         self.loss_function = loss_function
         self.batch_size = batch_size
         self.freezed_params = set()
         self.hooks = []
 
-    def freeze_layers(self, parameters_names: list):
+    def freeze_layers(self, num_of_layers: int, *parameters_names):
         """
         Function freezes layers parameters 
         to perform transfer learning task 
@@ -85,24 +91,17 @@ class FaceRecognitionNet(object):
             - parameters_names - list of parameter names
         """
         if len(parameters_names) == 0: return 
-        for layer in [
-            self.model.layer1, 
-            self.model.layer2, 
-            self.model.layer3, 
-        ]:
-            for name, param in layer.named_parameters():
-                if name in parameters_names:
-                    param.requires_grad = False 
-                    self.freezed_params.add(param)
-    
+        for layer_idx, layer in enumerate(self.model.parameters()):
+            
+            if layer_idx <= num_of_layers:
+                layer.requires_grad = False 
+        
     def unfreeze_layers(self):
         """
         Function unfreezes given set of layer parameters
         """
-        if len(self.freezed_params):
-            for param in self.freezed_params:
-                param.required_grad = True
-            self.freezed_params.clear()
+        for param in self.model.parameters():
+            param.requires_grad = True
 
     def enable_gradient_trace(self):
         """
@@ -111,14 +110,8 @@ class FaceRecognitionNet(object):
         """
         self.hooks.clear()
 
-        for idx, layer in enumerate(
-            [
-            self.model.layer1, 
-            self.model.layer2, 
-            self.model.layer3, 
-            self.model.layer4]
-        ):
-            hook = layer.register_full_backward_hook(
+        for idx, layer in enumerate(self.model.parameters()):
+            hook = layer.register_hook(
             add_gradient_trace_hook(layer_name='layer-%s' % str(idx)))
             self.hooks.append(hook)
 
@@ -217,7 +210,9 @@ class FaceRecognitionNet(object):
         loss_function = self.loss_function(weight=image_dataset.weights)
 
         for epoch in range(self.max_epochs):
+
             epoch_loss = []
+            self.lr_scheduler.step()
 
             for batch_labels, batch_images in tqdm(training_set):
                 
