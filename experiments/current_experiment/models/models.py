@@ -229,7 +229,6 @@ class FaceRecognitionNet(object):
         for epoch in range(self.max_epochs):
 
             epoch_loss = []
-            self.lr_scheduler.step()
 
             for batch_labels, batch_images in tqdm(training_set):
                 
@@ -241,6 +240,7 @@ class FaceRecognitionNet(object):
 
                 loss.backward()
                 self.optimizer.step()
+                self.lr_scheduler.step()
 
             # saving checkpoints of the training process
             self._save_checkpoint(
