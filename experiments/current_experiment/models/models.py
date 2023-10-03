@@ -56,6 +56,7 @@ class FaceRecognitionNet(object):
                  learning_rate: float = 0.001,
                  lr_gamma: float = 0.01,
                  trained_model=None,
+                 early_stoppings: int = None
     ):
 
         self.main_device = main_device if main_device else torch.device('cpu')
@@ -81,6 +82,7 @@ class FaceRecognitionNet(object):
         )
 
         self.max_epochs = max_epochs
+        self.early_stoppings = early_stoppings if early_stoppings else max_epochs
         self.loss_function = loss_function
         self.batch_size = batch_size
         self.freezed_params = set()
@@ -225,6 +227,7 @@ class FaceRecognitionNet(object):
 
         total_loss = []
         loss_function = self.loss_function(weight=image_dataset.weights)
+        best_mean_loss = 0
 
         for epoch in range(self.max_epochs):
 
@@ -248,7 +251,23 @@ class FaceRecognitionNet(object):
                 epoch=epoch
             )
 
+            epoch_mean_loss = torch.mean(epoch_loss)
+
+            if best_mean_loss == 0:
+                best_mean_loss = epoch_mean_loss
+
+            elif epoch_mean_loss > best_mean_loss:
+                patience += 1
+
+            else:
+                patience -= 1
+
             total_loss.append(torch.mean(epoch_loss))
+
+            # early stoppings
+            if patience == 0:
+                break 
+
         mean_loss = torch.mean(total_loss)
         return mean_loss
 
@@ -256,4 +275,3 @@ class FaceRecognitionNet(object):
         name = os.path.join(model_path, model_name + ".onnx")
         input_data = torch.tensor([512, 512, 3])
         torch.onnx.export(model=self, f=name, args=input_data)
-
